@@ -19,7 +19,7 @@ public class FrontControlleur extends HttpServlet {
             out.println("<title>Servlet test</title>");
             out.println("</head>");
             out.println("<body>");
-            out.println("<h1>Servlet test at " + request.getRequestURI() + "</h1>");
+            out.println("<h1>Servlet test at: " + request.getRequestURI() + "</h1>");
             out.println("</body>");
             out.println("</html>");
         }
