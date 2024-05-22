@@ -4,10 +4,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 import mg.itu.annotation.Controller;
+import mg.itu.annotation.GET;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -16,51 +18,60 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 public class FrontControleur extends HttpServlet {
-    private boolean isScanned = false;
-    private List<String> controleurs;
+    private Map<String, Mapping> mappings = new HashMap<>();
 
-    private List<String> scannePackage(String cPackage) throws ClassNotFoundException {
-        if (cPackage == null) {
-            ServletContext sc = getServletContext();
-            cPackage = sc.getInitParameter("packageControleur");
+    @Override
+    public void init() throws ServletException {
+        try {
+            scanControllers();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
+    }
+
+    private void scanControllers() throws ClassNotFoundException {
+        ServletContext sc = getServletContext();
+        String cPackage = sc.getInitParameter("packageControleur");
 
         String path = cPackage.replace(".", "/");
         File directory = new File(Thread.currentThread().getContextClassLoader().getResource(path).getFile());
-        List<String> nameClasses = new ArrayList<>();
+
         if (directory.exists()) {
             File[] files = directory.listFiles();
             for (File file : files) {
                 if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
-                    Class class1 = Class.forName(className);
+                    Class<?> class1 = Class.forName(className);
                     Annotation annotation = class1.getAnnotation(Controller.class);
                     if (annotation != null) {
-                        nameClasses.add(class1.getName());
+                        Method[] methods = class1.getDeclaredMethods();
+                        for (Method method : methods) {
+                            if (method.isAnnotationPresent(GET.class)) {
+                                GET getAnnotation = method.getAnnotation(GET.class);
+                                String url = getAnnotation.value();
+                                String methodName = method.getName();
+                                Mapping mapping = new Mapping(className, methodName);
+                                mappings.put(url, mapping);
+                            }
+                        }
                     }
-                } else if (file.isDirectory()) {
-                    String newPackage = cPackage + "." + file.getName();
-                    List<String> newList = scannePackage(newPackage);
-                    nameClasses.addAll(newList);
                 }
             }
         }
-        return nameClasses;
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         try (PrintWriter out = response.getWriter()) {
-            if (!isScanned) {
-                controleurs = this.scannePackage(null);
-                isScanned = true;
+            String url = request.getRequestURI();
+            Mapping mapping = mappings.get(url);
+            if (mapping != null) {
+                out.println("URL : " + url + "<br>");
+                out.println("Mapping : " + mapping);
+            } else {
+                out.println("Aucune méthode associée à cette URL.");
             }
-            for (String string : controleurs) {
-                out.println(string + "<br>");
-            }
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
         }
     }
 
@@ -76,14 +87,8 @@ public class FrontControleur extends HttpServlet {
         processRequest(request, response);
     }
 
-    /**
-     * Returns a short description of the servlet.
-     *
-     * @return a String containing servlet description
-     */
     @Override
     public String getServletInfo() {
-        return "Short description";
-    }// </editor-fold>
-
+        return "FrontControleur";
+    }
 }
