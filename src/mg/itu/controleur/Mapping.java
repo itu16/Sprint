@@ -7,6 +7,11 @@ public class Mapping {
     private String className;
     private String methodName;
 
+    public Mapping(String className, String methodName) {
+        this.className = className;
+        this.methodName = methodName;
+    }
+
     public String getClassName() {
         return className;
     }
@@ -23,8 +28,4 @@ public class Mapping {
         this.methodName = methodName;
     }
 
-    public Mapping(String className, String methodName) {
-        this.className = className;
-        this.methodName = methodName;
-    }
 }

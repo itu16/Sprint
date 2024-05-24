@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import mg.itu.annotation.Controller;
 import mg.itu.annotation.GET;
@@ -24,20 +26,26 @@ public class FrontControleur extends HttpServlet {
     public void init() throws ServletException {
         try {
             scanControllers();
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void scanControllers() throws ClassNotFoundException {
+    private void scanControllers() throws ClassNotFoundException, IOException {
         ServletContext sc = getServletContext();
         String cPackage = sc.getInitParameter("packageControleur");
 
-        String path = cPackage.replace(".", "/");
-        File directory = new File(Thread.currentThread().getContextClassLoader().getResource(path).getFile());
+        String path = cPackage.replace('.', '/');
+        URL directoryURL = Thread.currentThread().getContextClassLoader().getResource(path);
 
-        if (directory.exists()) {
-            File[] files = directory.listFiles();
+        if (directoryURL == null) {
+            throw new ClassNotFoundException("Package directory not found: " + path);
+        }
+
+        File directory = new File(directoryURL.getFile());
+
+        if (directory.exists() && directory.isDirectory()) {
+            File[] files = Objects.requireNonNull(directory.listFiles());
             for (File file : files) {
                 if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
@@ -57,6 +65,8 @@ public class FrontControleur extends HttpServlet {
                     }
                 }
             }
+        } else {
+            throw new ClassNotFoundException("Package directory not found or is not a directory: " + path);
         }
     }
 
@@ -64,11 +74,12 @@ public class FrontControleur extends HttpServlet {
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         try (PrintWriter out = response.getWriter()) {
-            String url = request.getRequestURI();
+            String url = request.getRequestURI().substring(request.getContextPath().length());
             Mapping mapping = mappings.get(url);
             if (mapping != null) {
-                out.println("URL : " + url + "<br>");
-                out.println("Mapping : " + mapping);
+                out.println("<h1>URL: " + url + "</h1>");
+                out.println("<p>Class: " + mapping.getClassName() + "</p>");
+                out.println("<p>Method: " + mapping.getMethodName() + "</p>");
             } else {
                 out.println("Aucune méthode associée à cette URL.");
             }
