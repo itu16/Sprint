@@ -1,8 +1,12 @@
 package controleur.mg;
 
-import mg.itu.annotation.Controller;
+import mg.itu.annotation.Controleur;
+import mg.itu.annotation.GET;
 
-@Controller
+@Controleur
 public class Autre {
-
+    @GET("/autre")
+    public String autreFonction() {
+        return "Ra ando le ptrnc";
+    }
 }

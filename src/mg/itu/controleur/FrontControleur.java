@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
+ */
 package mg.itu.controleur;
 
 import java.io.File;
@@ -5,93 +9,86 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-
-import mg.itu.annotation.Controller;
-import mg.itu.annotation.GET;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import mg.itu.annotation.Controleur;
+import mg.itu.annotation.GET;
+import mg.itu.util.Mapping;
 
 public class FrontControleur extends HttpServlet {
-    private Map<String, Mapping> mappings = new HashMap<>();
+    private Map<String,Mapping> controleurs = new HashMap<>();
 
-    @Override
-    public void init() throws ServletException {
-        try {
-            scanControllers();
-        } catch (ClassNotFoundException | IOException e) {
-            e.printStackTrace();
+    private void scannePackage(String cPackage) throws ClassNotFoundException {
+        if (cPackage == null) {
+            ServletContext sc = getServletContext();
+            cPackage = sc.getInitParameter("packageControleur");
+        }
+
+        String path = cPackage.replace(".", "/");
+        File directory = new File(Thread.currentThread().getContextClassLoader().getResource(path).getFile());
+        if (directory.exists()) {
+            File[] files = directory.listFiles();
+            for (File file : files) {
+                if(file.isFile() && file.getName().endsWith(".class")) {
+                    String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
+                    Class class1 = Class.forName(className);
+                    Annotation annotation = class1.getAnnotation(Controleur.class);
+                    if (annotation != null) {
+                        this.setMapping(class1);
+                    }
+                } else if (file.isDirectory()) {
+                    String newPackage = cPackage + "." + file.getName();
+                    scannePackage(newPackage);
+                }
+            }
         }
     }
 
-    private void scanControllers() throws ClassNotFoundException, IOException {
-        ServletContext sc = getServletContext();
-        String cPackage = sc.getInitParameter("packageControleur");
-
-        String path = cPackage.replace('.', '/');
-        URL directoryURL = Thread.currentThread().getContextClassLoader().getResource(path);
-
-        if (directoryURL == null) {
-            throw new ClassNotFoundException("Package directory not found: " + path);
-        }
-
-        File directory = new File(directoryURL.getFile());
-
-        if (directory.exists() && directory.isDirectory()) {
-            File[] files = Objects.requireNonNull(directory.listFiles());
-            for (File file : files) {
-                if (file.isFile() && file.getName().endsWith(".class")) {
-                    String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
-                    Class<?> class1 = Class.forName(className);
-                    Annotation annotation = class1.getAnnotation(Controller.class);
-                    if (annotation != null) {
-                        Method[] methods = class1.getDeclaredMethods();
-                        for (Method method : methods) {
-                            if (method.isAnnotationPresent(GET.class)) {
-                                GET getAnnotation = method.getAnnotation(GET.class);
-                                String url = getAnnotation.value();
-                                String methodName = method.getName();
-                                Mapping mapping = new Mapping(className, methodName);
-                                mappings.put(url, mapping);
-                            }
-                        }
-                    }
-                }
+    private void setMapping(Class c) {
+        Method[] methodes = c.getMethods();
+        for (int j = 0; j < methodes.length; j++) {
+            GET annotGet = methodes[j].getAnnotation(GET.class);
+            if ( annotGet !=null ) {
+                String url = (annotGet.value().charAt(0) == '/') ? annotGet.value() : "/" + annotGet.value();
+                controleurs.put(url, new Mapping(c.getName() , methodes[j].getName()));
             }
-        } else {
-            throw new ClassNotFoundException("Package directory not found or is not a directory: " + path);
         }
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-        try (PrintWriter out = response.getWriter()) {
-            String url = request.getRequestURI().substring(request.getContextPath().length());
-            Mapping mapping = mappings.get(url);
-            if (mapping != null) {
-                out.println("<h1>URL: " + url + "</h1>");
-                out.println("<p>Class: " + mapping.getClassName() + "</p>");
-                out.println("<p>Method: " + mapping.getMethodName() + "</p>");
-            } else {
-                out.println("Aucune méthode associée à cette URL.");
+        try(PrintWriter out = response.getWriter()) {
+            String requestUrl = request.getRequestURI().replace(request.getContextPath(), "");
+            Mapping mapping = controleurs.getOrDefault(requestUrl, null);
+            if (mapping == null) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND,  "La ressource demandée ["+requestUrl+"] n'est pas disponible");
+                return;
             }
+            out.println("<ul>");
+            out.println("<li><h1>"+ requestUrl +"</h1><ul>");
+            out.println("<li><strong>Nom class</strong>:" + mapping.getClassName() + "</li>");
+            out.println("<li><strong>Methode:</strong>" + mapping.getMethodName() + "</li>");
+            out.println("<li><strong>Content:</strong>"+ mapping.getResponse() +"</li>");
+            out.println("</ul></li>");
+        } catch (Exception e) {
+            throw new ServletException(e);
         }
     }
+
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
-
+    
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -99,7 +96,23 @@ public class FrontControleur extends HttpServlet {
     }
 
     @Override
-    public String getServletInfo() {
-        return "FrontControleur";
+    public void init() throws ServletException {
+        super.init();
+        try {
+            this.scannePackage(null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
+    /**
+     * Returns a short description of the servlet.
+     *
+     * @return a String containing servlet description
+     */
+    @Override
+    public String getServletInfo() {
+        return "Short description";
+    }// </editor-fold>
+
 }
