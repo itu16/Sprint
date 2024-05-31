@@ -1,8 +1,18 @@
 package controleur;
 
-import mg.itu.annotation.Controller;
+import mg.itu.annotation.Controleur;
+import mg.itu.annotation.GET;
 
-@Controller(path = "/")
+@Controleur
 public class Test {
 
+    @GET("/")
+    public String index() {
+        return "<h1>GG be ee</h1>";
+    }
+
+    @GET("/home")
+    public void home() {
+        return;
+    }
 }
