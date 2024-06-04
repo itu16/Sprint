@@ -7,6 +7,6 @@ import mg.itu.annotation.GET;
 public class Autre {
     @GET("/autre")
     public String autreFonction() {
-        return "Ra ando le ptrnc";
+        return "Tsara be daholo";
     }
 }
