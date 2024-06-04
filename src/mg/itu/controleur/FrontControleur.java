@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
- */
 package mg.itu.controleur;
 
 import java.io.File;
@@ -12,6 +8,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -22,7 +19,7 @@ import mg.itu.annotation.GET;
 import mg.itu.util.Mapping;
 
 public class FrontControleur extends HttpServlet {
-    private Map<String,Mapping> controleurs = new HashMap<>();
+    private Map<String, Mapping> controleurs = new HashMap<>();
 
     private void scannePackage(String cPackage) throws ClassNotFoundException {
         if (cPackage == null) {
@@ -35,7 +32,7 @@ public class FrontControleur extends HttpServlet {
         if (directory.exists()) {
             File[] files = directory.listFiles();
             for (File file : files) {
-                if(file.isFile() && file.getName().endsWith(".class")) {
+                if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
                     Class class1 = Class.forName(className);
                     Annotation annotation = class1.getAnnotation(Controleur.class);
@@ -54,41 +51,60 @@ public class FrontControleur extends HttpServlet {
         Method[] methodes = c.getMethods();
         for (int j = 0; j < methodes.length; j++) {
             GET annotGet = methodes[j].getAnnotation(GET.class);
-            if ( annotGet !=null ) {
+            if (annotGet != null) {
                 String url = (annotGet.value().charAt(0) == '/') ? annotGet.value() : "/" + annotGet.value();
-                controleurs.put(url, new Mapping(c.getName() , methodes[j].getName()));
+                controleurs.put(url, new Mapping(c.getName(), methodes[j].getName()));
             }
         }
+    }
+
+    private String getRequestUrl(HttpServletRequest request) {
+        String urlPattern = request.getHttpServletMapping().getPattern().replace("*", "");
+        String requestUrl = request.getRequestURI()
+                .replace(request.getContextPath(), "")
+                .replace(urlPattern, "");
+        requestUrl = (requestUrl.startsWith("/")) ? requestUrl : "/" + requestUrl;
+        return requestUrl;
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-        try(PrintWriter out = response.getWriter()) {
+        try (PrintWriter out = response.getWriter()) {
             String requestUrl = request.getRequestURI().replace(request.getContextPath(), "");
             Mapping mapping = controleurs.getOrDefault(requestUrl, null);
             if (mapping == null) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND,  "La ressource demandée ["+requestUrl+"] n'est pas disponible");
+                response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                        "La ressource demandée [" + requestUrl + "] n'est pas disponible");
                 return;
             }
-            out.println("<ul>");
-            out.println("<li><h1>"+ requestUrl +"</h1><ul>");
-            out.println("<li><strong>Nom class</strong>:" + mapping.getClassName() + "</li>");
-            out.println("<li><strong>Methode:</strong>" + mapping.getMethodName() + "</li>");
-            out.println("<li><strong>Content:</strong>"+ mapping.getResponse() +"</li>");
-            out.println("</ul></li>");
+
+            // reponse
+            Object rep = mapping.getResponse();
+            if (rep == null) {
+                response.sendError(HttpServletResponse.SC_NO_CONTENT, "Pas de type de retour");
+                return;
+            }
+
+            if (rep.getClass().getTypeName().equals(String.class.getTypeName())) {
+                out.println(rep.toString());
+            } else if (rep.getClass().getTypeName().equals(ModelView.class.getTypeName())) {
+                ModelView mv = (ModelView) rep;
+                RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrlDestination());
+                mv.setAttributs(s);
+                dispatcher.forward(request, response);
+            }
         } catch (Exception e) {
-            throw new ServletException(e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
-
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
-    
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
