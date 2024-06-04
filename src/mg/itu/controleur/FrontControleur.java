@@ -22,7 +22,7 @@ import mg.itu.annotation.GET;
 import mg.itu.util.Mapping;
 
 public class FrontControleur extends HttpServlet {
-    private Map<String,Mapping> controleurs = new HashMap<>();
+    private Map<String, Mapping> controleurs = new HashMap<>();
 
     private void scannePackage(String cPackage) throws ClassNotFoundException {
         if (cPackage == null) {
@@ -35,7 +35,7 @@ public class FrontControleur extends HttpServlet {
         if (directory.exists()) {
             File[] files = directory.listFiles();
             for (File file : files) {
-                if(file.isFile() && file.getName().endsWith(".class")) {
+                if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
                     Class class1 = Class.forName(className);
                     Annotation annotation = class1.getAnnotation(Controleur.class);
@@ -54,9 +54,9 @@ public class FrontControleur extends HttpServlet {
         Method[] methodes = c.getMethods();
         for (int j = 0; j < methodes.length; j++) {
             GET annotGet = methodes[j].getAnnotation(GET.class);
-            if ( annotGet !=null ) {
+            if (annotGet != null) {
                 String url = (annotGet.value().charAt(0) == '/') ? annotGet.value() : "/" + annotGet.value();
-                controleurs.put(url, new Mapping(c.getName() , methodes[j].getName()));
+                controleurs.put(url, new Mapping(c.getName(), methodes[j].getName()));
             }
         }
     }
@@ -64,31 +64,31 @@ public class FrontControleur extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-        try(PrintWriter out = response.getWriter()) {
+        try (PrintWriter out = response.getWriter()) {
             String requestUrl = request.getRequestURI().replace(request.getContextPath(), "");
             Mapping mapping = controleurs.getOrDefault(requestUrl, null);
             if (mapping == null) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND,  "La ressource demandée ["+requestUrl+"] n'est pas disponible");
+                response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                        "La ressource demandée [" + requestUrl + "] n'est pas disponible");
                 return;
             }
             out.println("<ul>");
-            out.println("<li><h1>"+ requestUrl +"</h1><ul>");
+            out.println("<li><h1>" + requestUrl + "</h1><ul>");
             out.println("<li><strong>Nom class</strong>:" + mapping.getClassName() + "</li>");
             out.println("<li><strong>Methode:</strong>" + mapping.getMethodName() + "</li>");
-            out.println("<li><strong>Content:</strong>"+ mapping.getResponse() +"</li>");
+            out.println("<li><strong>Content:</strong>" + mapping.getResponse() + "</li>");
             out.println("</ul></li>");
         } catch (Exception e) {
             throw new ServletException(e);
         }
     }
 
-
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
-    
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -100,6 +100,9 @@ public class FrontControleur extends HttpServlet {
         super.init();
         try {
             this.scannePackage(null);
+            if (controleurs.size() == 0) {
+                throw new ServletException("Path non trouver");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
