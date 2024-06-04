@@ -116,8 +116,11 @@ public class FrontControleur extends HttpServlet {
         super.init();
         try {
             this.scannePackage(null);
+            if (controleurs.size() == 0) {
+                throw new ServletException("path non trouvé");
+            }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new ServletException(e);
         }
     }
 
