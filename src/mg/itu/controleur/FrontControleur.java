@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,20 +22,25 @@ import mg.itu.util.Mapping;
 public class FrontControleur extends HttpServlet {
     private Map<String, Mapping> controleurs = new HashMap<>();
 
-    private void scannePackage(String cPackage) throws ClassNotFoundException {
+    private void scannePackage(String cPackage) throws Exception {
         if (cPackage == null) {
             ServletContext sc = getServletContext();
             cPackage = sc.getInitParameter("packageControleur");
         }
 
         String path = cPackage.replace(".", "/");
-        File directory = new File(Thread.currentThread().getContextClassLoader().getResource(path).getFile());
+        URL url = Thread.currentThread().getContextClassLoader().getResource(path);
+        if (url == null) {
+            throw new Exception("Le package [" + cPackage + "] n'existe pas");
+        }
+
+        File directory = new File(url.getFile());
         if (directory.exists()) {
             File[] files = directory.listFiles();
             for (File file : files) {
                 if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
-                    Class class1 = Class.forName(className);
+                    Class<?> class1 = Class.forName(className);
                     Annotation annotation = class1.getAnnotation(Controleur.class);
                     if (annotation != null) {
                         this.setMapping(class1);
@@ -47,13 +53,19 @@ public class FrontControleur extends HttpServlet {
         }
     }
 
-    private void setMapping(Class c) {
+    private void setMapping(Class<?> c) throws Exception {
         Method[] methodes = c.getMethods();
         for (int j = 0; j < methodes.length; j++) {
             GET annotGet = methodes[j].getAnnotation(GET.class);
             if (annotGet != null) {
                 String url = (annotGet.value().charAt(0) == '/') ? annotGet.value() : "/" + annotGet.value();
-                controleurs.put(url, new Mapping(c.getName(), methodes[j].getName()));
+
+                if (controleurs.containsKey(url)) {
+                    throw new Exception("Duplicate url [" + url + "] dans " + c.getName() + " et "
+                            + controleurs.get(url).getClassName());
+                }
+                Mapping map = new Mapping(c.getName(), methodes[j].getName(), methodes[j].getParameters());
+                controleurs.put(url, map);
             }
         }
     }
@@ -70,8 +82,10 @@ public class FrontControleur extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-        try (PrintWriter out = response.getWriter()) {
-            String requestUrl = request.getRequestURI().replace(request.getContextPath(), "");
+        try {
+            PrintWriter out = response.getWriter();
+
+            String requestUrl = getRequestUrl(request);
             Mapping mapping = controleurs.getOrDefault(requestUrl, null);
             if (mapping == null) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND,
@@ -79,8 +93,8 @@ public class FrontControleur extends HttpServlet {
                 return;
             }
 
-            // reponse
-            Object rep = mapping.getResponse();
+            // Gestion de reponse
+            Object rep = mapping.getResponse(request);
             if (rep == null) {
                 response.sendError(HttpServletResponse.SC_NO_CONTENT, "Pas de type de retour");
                 return;
@@ -90,12 +104,15 @@ public class FrontControleur extends HttpServlet {
                 out.println(rep.toString());
             } else if (rep.getClass().getTypeName().equals(ModelView.class.getTypeName())) {
                 ModelView mv = (ModelView) rep;
-                RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrlDestination());
-                mv.setAttributs(s);
+                RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrlDestionation());
+                mv.setAttributs(request);
                 dispatcher.forward(request, response);
+            } else {
+                response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "Type de retour non supporter");
             }
+
         } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new ServletException(e.getMessage(), e.getCause());
         }
     }
 
@@ -117,10 +134,10 @@ public class FrontControleur extends HttpServlet {
         try {
             this.scannePackage(null);
             if (controleurs.size() == 0) {
-                throw new ServletException("path non trouvé");
+                throw new ServletException("Pas de path trouver");
             }
         } catch (Exception e) {
-            throw new ServletException(e);
+            throw new ServletException(e.getMessage(), e.getCause());
         }
     }
 
