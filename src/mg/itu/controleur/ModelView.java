@@ -7,27 +7,19 @@ import java.util.Map;
 
 public class ModelView {
     String urlDestination;
-    Map<String, Object> data;
-
+    Map<String,Object> data;
+    
     public ModelView(String view) {
         data = new HashMap<>();
-        setUrlDestination(view);
+        setUrlDestionation(view);
     }
 
-    protected String getUrlDestination() {
+    protected String getUrlDestionation() {
         return urlDestination;
     }
 
-    public void setUrlDestination(String urlDestination) {
-        this.urlDestination = urlDestination;
-    }
-
-    public Map<String, Object> getData() {
-        return data;
-    }
-
-    public void setData(Map<String, Object> data) {
-        this.data = data;
+    private void setUrlDestionation(String view) {
+        this.urlDestination = view;
     }
 
     public void addObject(String nom, Object o) {
@@ -35,9 +27,9 @@ public class ModelView {
     }
 
     protected void setAttributs(HttpServletRequest request) {
-        for (String key : data.keySet()) {
+        for (String  key : data.keySet()) {
             request.setAttribute(key, data.getOrDefault(key, null));
         }
-
     }
+
 }
