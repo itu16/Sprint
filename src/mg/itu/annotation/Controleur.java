@@ -10,4 +10,4 @@ import java.lang.annotation.Target;
 
 public @interface Controleur {
     public String path() default "/";
-}
+} 

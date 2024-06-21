@@ -20,7 +20,7 @@ import mg.itu.annotation.GET;
 import mg.itu.util.Mapping;
 
 public class FrontControleur extends HttpServlet {
-    private Map<String, Mapping> controleurs = new HashMap<>();
+    private Map<String,Mapping> controleurs = new HashMap<>();
 
     private void scannePackage(String cPackage) throws Exception {
         if (cPackage == null) {
@@ -30,15 +30,15 @@ public class FrontControleur extends HttpServlet {
 
         String path = cPackage.replace(".", "/");
         URL url = Thread.currentThread().getContextClassLoader().getResource(path);
-        if (url == null) {
-            throw new Exception("Le package [" + cPackage + "] n'existe pas");
+        if(url == null) {
+            throw new Exception("Le package ["+ cPackage +"] n'existe pas");
         }
 
         File directory = new File(url.getFile());
         if (directory.exists()) {
             File[] files = directory.listFiles();
             for (File file : files) {
-                if (file.isFile() && file.getName().endsWith(".class")) {
+                if(file.isFile() && file.getName().endsWith(".class")) {
                     String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
                     Class<?> class1 = Class.forName(className);
                     Annotation annotation = class1.getAnnotation(Controleur.class);
@@ -57,14 +57,13 @@ public class FrontControleur extends HttpServlet {
         Method[] methodes = c.getMethods();
         for (int j = 0; j < methodes.length; j++) {
             GET annotGet = methodes[j].getAnnotation(GET.class);
-            if (annotGet != null) {
+            if ( annotGet !=null ) {
                 String url = (annotGet.value().charAt(0) == '/') ? annotGet.value() : "/" + annotGet.value();
-
+                
                 if (controleurs.containsKey(url)) {
-                    throw new Exception("Duplicate url [" + url + "] dans " + c.getName() + " et "
-                            + controleurs.get(url).getClassName());
+                    throw new Exception("Duplicate url ["+ url +"] dans "+ c.getName() + " et "+ controleurs.get(url).getClassName());
                 }
-                Mapping map = new Mapping(c.getName(), methodes[j].getName(), methodes[j].getParameters());
+                Mapping map = new Mapping(c.getName() , methodes[j].getName(), methodes[j].getParameters());
                 controleurs.put(url, map);
             }
         }
@@ -73,8 +72,8 @@ public class FrontControleur extends HttpServlet {
     private String getRequestUrl(HttpServletRequest request) {
         String urlPattern = request.getHttpServletMapping().getPattern().replace("*", "");
         String requestUrl = request.getRequestURI()
-                .replace(request.getContextPath(), "")
-                .replace(urlPattern, "");
+                            .replace(request.getContextPath(), "")
+                            .replace(urlPattern,"");
         requestUrl = (requestUrl.startsWith("/")) ? requestUrl : "/" + requestUrl;
         return requestUrl;
     }
@@ -88,19 +87,18 @@ public class FrontControleur extends HttpServlet {
             String requestUrl = getRequestUrl(request);
             Mapping mapping = controleurs.getOrDefault(requestUrl, null);
             if (mapping == null) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND,
-                        "La ressource demandée [" + requestUrl + "] n'est pas disponible");
+                response.sendError(HttpServletResponse.SC_NOT_FOUND,  "La ressource demandée ["+requestUrl+"] n'est pas disponible");
                 return;
             }
-
+            
             // Gestion de reponse
             Object rep = mapping.getResponse(request);
-            if (rep == null) {
+            if(rep == null) {
                 response.sendError(HttpServletResponse.SC_NO_CONTENT, "Pas de type de retour");
                 return;
             }
-
-            if (rep.getClass().getTypeName().equals(String.class.getTypeName())) {
+            
+            if(rep.getClass().getTypeName().equals(String.class.getTypeName())) {
                 out.println(rep.toString());
             } else if (rep.getClass().getTypeName().equals(ModelView.class.getTypeName())) {
                 ModelView mv = (ModelView) rep;
@@ -112,16 +110,17 @@ public class FrontControleur extends HttpServlet {
             }
 
         } catch (Exception e) {
-            throw new ServletException(e.getMessage(), e.getCause());
+            throw new ServletException(e);
         }
     }
+
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
-
+    
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
