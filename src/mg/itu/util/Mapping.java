@@ -36,7 +36,8 @@ public class Mapping {
 
     }
 
-    private Object cast(Class<?> type, Object value) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+    private Object cast(Class<?> type, Object value) throws InstantiationException, IllegalAccessException,
+            IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
         String typeName = type.getSimpleName().toLowerCase();
         if (typeName.contains("int")) {
             return Integer.parseInt(value.toString());
@@ -60,9 +61,9 @@ public class Mapping {
         Method method = class1.getMethod(methodName, getParameterTypes());
 
         // instance non Primitive Parameter
-        Map<String, Object> mapInstances =  new HashMap<>();
+        Map<String, Object> mapInstances = new HashMap<>();
 
-        //Argument anle method controleur
+        // Argument anle method controleur
         Object[] paramValues = new Object[method.getParameterCount()];
 
         for (int index = 0; index < parameters.length; index++) {
@@ -83,13 +84,13 @@ public class Mapping {
 
             for (int i = 0; i < parameters.length; i++) {
                 String paramKey = getParameterName(method, parameters[i]);
-                //Object 
+                // Object
                 if (paramKey.equals(data[0]) && data.length > 1) {
                     Object model = mapInstances.get(data[0]);
                     Method m = getMethod(model.getClass(), data[1]);
                     Object value = cast(m.getParameterTypes()[0], request.getParameter(reqKey));
                     m.invoke(model, value);
-                } else if(paramKey.equals(reqKey)) {
+                } else if (paramKey.equals(reqKey)) {
                     paramValues[i] = cast(parameters[i].getType(), request.getParameter(reqKey));
                 }
             }
@@ -98,21 +99,15 @@ public class Mapping {
         return method.invoke(instance, paramValues);
     }
 
-    private String getParameterName(Method method, Parameter param) throws Exception {
+    public String getParameterName(Method method, Parameter param) throws Exception {
         if (param.isAnnotationPresent(Param.class)) {
             return param.getAnnotation(Param.class).value();
         }
-
-        // for (int i = 0; i < parameters.length; i++) {
-        //     if (parameters[i].equals(param)) {
-        //         return getParameterNames()[i];
-        //     }
-        // }
-        return param.getName();
+        throw new Exception("ETU002532 " + method.getName() + " n'a pas d'annotation @Param");
     }
 
     private String toSetters(String name) {
-        return "set" + name.substring(0,1).toUpperCase() + name.substring(1);
+        return "set" + name.substring(0, 1).toUpperCase() + name.substring(1);
     }
 
     private Method getMethod(Class<?> c, String fieldName) throws Exception {
@@ -121,13 +116,22 @@ public class Mapping {
         return c.getMethod(fieldSetter, fieldType);
     }
 
-
     private Class<?>[] getParameterTypes() {
         Class<?>[] types = new Class[parameters.length];
         for (int i = 0; i < types.length; i++) {
             types[i] = parameters[i].getType();
         }
         return types;
+    }
+
+    // Nouvelle méthode ajoutée
+    public Object getParameterValue(HttpServletRequest request, Parameter parameter) throws Exception {
+        String paramName = getParameterName(parameter);
+        String paramValue = request.getParameter(paramName);
+        if (paramValue != null) {
+            return cast(parameter.getType(), paramValue);
+        }
+        return null;
     }
 
     public String getClassName() {
@@ -161,5 +165,12 @@ public class Mapping {
 
     public void setParameters(Parameter[] parameters) {
         this.parameters = parameters;
-    }    
+    }
+
+    private String getParameterName(Parameter parameter) throws Exception {
+        if (parameter.isAnnotationPresent(Param.class)) {
+            return parameter.getAnnotation(Param.class).value();
+        }
+        throw new Exception("Le paramètre " + parameter.getName() + " n'a pas d'annotation @Param");
+    }
 }
