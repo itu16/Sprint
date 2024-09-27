@@ -13,6 +13,8 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.gson.Gson;
+
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -24,12 +26,14 @@ import mg.itu.annotation.GET;
 import mg.itu.util.Mapping;
 
 public class FrontControleur extends HttpServlet {
+    private final String INIT_PACKAGE = "package_controleur";
+
     private Map<String, Mapping> controleurs = new HashMap<>();
 
     private void scannePackage(String cPackage) throws Exception {
         if (cPackage == null) {
             ServletContext sc = getServletContext();
-            cPackage = sc.getInitParameter("packageControleur");
+            cPackage = sc.getInitParameter(INIT_PACKAGE);
         }
 
         String path = cPackage.replace(".", "/");
@@ -104,7 +108,20 @@ public class FrontControleur extends HttpServlet {
                 return;
             }
 
-            if (rep.getClass().getTypeName().equals(String.class.getTypeName())) {
+            if (mapping.isRestapi()) {
+                response.setContentType("text/json");
+                Gson json = new Gson();
+                if (rep instanceof ModelView) {
+                    ModelView mv = (ModelView) rep;
+                    out.println(json.toJson(mv.getData()));
+                } else if (rep instanceof String) {
+                    out.println(rep);
+                } else {
+                    out.println(json.toJson(rep));
+                }
+            }
+
+            else if (rep.getClass().getTypeName().equals(String.class.getTypeName())) {
                 out.println(rep.toString());
             } else if (rep.getClass().getTypeName().equals(ModelView.class.getTypeName())) {
                 ModelView mv = (ModelView) rep;
@@ -141,7 +158,7 @@ public class FrontControleur extends HttpServlet {
                 throw new ServletException("Pas de path trouver");
             }
         } catch (Exception e) {
-            throw new ServletException(e.getMessage(), e.getCause());
+            throw new ServletException(e);
         }
     }
 
