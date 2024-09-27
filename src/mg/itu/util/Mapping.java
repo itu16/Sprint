@@ -1,5 +1,7 @@
 package mg.itu.util;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -7,19 +9,16 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.thoughtworks.paranamer.BytecodeReadingParanamer;
-import com.thoughtworks.paranamer.Paranamer;
-
 import jakarta.servlet.http.HttpServletRequest;
+import mg.itu.annotation.Controleur;
 import mg.itu.annotation.Param;
+import mg.itu.annotation.Restapi;
 
 public class Mapping {
     String className;
     String methodName;
     Parameter[] parameters;
     String[] parameterNames;
-
-    private Paranamer paranamer = new BytecodeReadingParanamer();
 
     public Mapping(String className, String methodName, Parameter[] parameters) {
         setClassName(className);
@@ -36,8 +35,7 @@ public class Mapping {
 
     }
 
-    private Object cast(Class<?> type, Object value) throws InstantiationException, IllegalAccessException,
-            IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+    private Object cast(Class<?> type, Object value) {
         String typeName = type.getSimpleName().toLowerCase();
         if (typeName.contains("int")) {
             return Integer.parseInt(value.toString());
@@ -55,10 +53,21 @@ public class Mapping {
         return c.getConstructor().newInstance();
     }
 
+    private void injectSession(Object instance, HttpServletRequest request)
+            throws IllegalArgumentException, IllegalAccessException {
+        for (Field field : instance.getClass().getDeclaredFields()) {
+            if (field.getType().equals(Session.class)) {
+                field.setAccessible(true);
+                field.set(instance, new Session(request.getSession()));
+            }
+        }
+    }
+
     public Object getResponse(HttpServletRequest request) throws Exception {
         Class<?> class1 = Class.forName(this.getClassName());
         Object instance = class1.getConstructor().newInstance();
         Method method = class1.getMethod(methodName, getParameterTypes());
+        injectSession(instance, request);
 
         // instance non Primitive Parameter
         Map<String, Object> mapInstances = new HashMap<>();
@@ -67,6 +76,10 @@ public class Mapping {
         Object[] paramValues = new Object[method.getParameterCount()];
 
         for (int index = 0; index < parameters.length; index++) {
+            if (parameters[index].getType().getName().equals(Session.class.getName())) {
+                paramValues[index] = new Session(request.getSession());
+                continue;
+            }
             if (parameters[index].getType().isPrimitive()) {
                 continue;
             }
@@ -83,6 +96,9 @@ public class Mapping {
             String[] data = reqKey.split("\\.");
 
             for (int i = 0; i < parameters.length; i++) {
+                if (parameters[i].getType().getName().equals(Session.class.getName())) {
+                    continue;
+                }
                 String paramKey = getParameterName(method, parameters[i]);
                 // Object
                 if (paramKey.equals(data[0]) && data.length > 1) {
@@ -99,11 +115,21 @@ public class Mapping {
         return method.invoke(instance, paramValues);
     }
 
-    public String getParameterName(Method method, Parameter param) throws Exception {
+    private String getParameterName(Method method, Parameter param) throws Exception {
         if (param.isAnnotationPresent(Param.class)) {
             return param.getAnnotation(Param.class).value();
+        } else if (param.getType().getName().equals(Session.class.getName())) {
+            return "";
+        } else {
+            throw new Exception("ETU002643:Erreur annotation");
         }
-        throw new Exception("ETU002532 " + method.getName() + " n'a pas d'annotation @Param");
+        // return param.getName();
+    }
+
+    public boolean isRestapi() throws ClassNotFoundException, NoSuchMethodException, SecurityException {
+        Class<?> class1 = Class.forName(className);
+        Method method = class1.getMethod(methodName, getParameterTypes());
+        return method.isAnnotationPresent(Restapi.class);
     }
 
     private String toSetters(String name) {
@@ -122,16 +148,6 @@ public class Mapping {
             types[i] = parameters[i].getType();
         }
         return types;
-    }
-
-    // Nouvelle méthode ajoutée
-    public Object getParameterValue(HttpServletRequest request, Parameter parameter) throws Exception {
-        String paramName = getParameterName(parameter);
-        String paramValue = request.getParameter(paramName);
-        if (paramValue != null) {
-            return cast(parameter.getType(), paramValue);
-        }
-        return null;
     }
 
     public String getClassName() {
@@ -154,23 +170,7 @@ public class Mapping {
         return parameters;
     }
 
-    public String[] getParameterNames() throws Exception {
-        if (parameterNames == null) {
-            Class<?> class1 = Class.forName(this.getClassName());
-            Method method = class1.getMethod(methodName, getParameterTypes());
-            parameterNames = paranamer.lookupParameterNames(method);
-        }
-        return parameterNames;
-    }
-
     public void setParameters(Parameter[] parameters) {
         this.parameters = parameters;
-    }
-
-    private String getParameterName(Parameter parameter) throws Exception {
-        if (parameter.isAnnotationPresent(Param.class)) {
-            return parameter.getAnnotation(Param.class).value();
-        }
-        throw new Exception("Le paramètre " + parameter.getName() + " n'a pas d'annotation @Param");
     }
 }
