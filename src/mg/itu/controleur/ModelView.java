@@ -8,7 +8,7 @@ import java.util.Map;
 public class ModelView {
     String urlDestination;
     Map<String, Object> data;
-
+    
     public Map<String, Object> getData() {
         return data;
     }
@@ -39,5 +39,4 @@ public class ModelView {
             request.setAttribute(key, data.getOrDefault(key, null));
         }
     }
-
 }

@@ -8,7 +8,7 @@ set "temp=%work_dir%\temp"
 set "web=%work_dir%\web"
 set "config_xml=%work_dir%\config"
 set "lib=%work_dir%\lib"
-set "web_apps=I:\app_info\apache-tomcat-11.0.0-M4\webapps"
+set "web_apps=I:\app_info\apache-tomcat-11.0.0-M26\apache-tomcat-11.0.0-M26\webapps"
 set "src=%work_dir%\src"
 
 :: Effacer le dossier [temp]
@@ -39,7 +39,7 @@ dir /s /B "%lib%\*.jar" > libs.txt
 set "classpath="
 for /F "delims=" %%i in (libs.txt) do set "classpath=!classpath!%%i;"
 :: Exécuter la commande javac
-javac -d "%temp%\WEB-INF\classes" -cp "%classpath%" @sources.txt
+javac -parameters -d "%temp%\WEB-INF\classes" -cp "%classpath%" @sources.txt
 :: Supprimer les fichiers sources.txt et libs.txt après la compilation
 del sources.txt
 del libs.txt
