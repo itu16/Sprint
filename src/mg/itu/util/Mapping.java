@@ -19,7 +19,6 @@ public class Mapping {
     Parameter[] parameters;
     String[] parameterNames;
 
-
     public Mapping(String className, String methodName, Parameter[] parameters) {
         setClassName(className);
         setParameters(parameters);
@@ -53,9 +52,8 @@ public class Mapping {
         return c.getConstructor().newInstance();
     }
 
-
     private void injectSession(Object instance, HttpServletRequest request) throws IllegalArgumentException, IllegalAccessException {
-        for ( Field field : instance.getClass().getDeclaredFields()) {
+        for (Field field : instance.getClass().getDeclaredFields()) {
             if (field.getType().equals(Session.class)) {
                 field.setAccessible(true);
                 field.set(instance, new Session(request.getSession()));
@@ -72,7 +70,7 @@ public class Mapping {
         // instance non Primitive Parameter
         Map<String, Object> mapInstances =  new HashMap<>();
 
-        //Argument anle method controleur
+        // Argument anle method controleur
         Object[] paramValues = new Object[method.getParameterCount()];
 
         for (int index = 0; index < parameters.length; index++) {
@@ -100,7 +98,7 @@ public class Mapping {
                     continue;
                 }
                 String paramKey = getParameterName(method, parameters[i]);
-                //Object 
+                // Object 
                 if (paramKey.equals(data[0]) && data.length > 1) {
                     Object model = mapInstances.get(data[0]);
                     Method m = getMethod(model.getClass(), data[1]);
@@ -162,7 +160,6 @@ public class Mapping {
     public String getMethodName() {
         return methodName;
     }
-
 
     public void setMethodName(String methodName) {
         this.methodName = methodName;

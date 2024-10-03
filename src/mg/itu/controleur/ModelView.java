@@ -7,7 +7,7 @@ import java.util.Map;
 
 public class ModelView {
     String urlDestination;
-    Map<String,Object> data;
+    Map<String, Object> data;
     
     public Map<String, Object> getData() {
         return data;
@@ -35,9 +35,8 @@ public class ModelView {
     }
 
     protected void setAttributs(HttpServletRequest request) {
-        for (String  key : data.keySet()) {
+        for (String key : data.keySet()) {
             request.setAttribute(key, data.getOrDefault(key, null));
         }
     }
-
 }

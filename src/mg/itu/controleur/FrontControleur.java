@@ -30,7 +30,6 @@ import mg.itu.util.Mapping;
 public class FrontControleur extends HttpServlet {
     private final String INIT_PACKAGE = "package_controleur";
 
-
     private Map<String, Mapping> controleurs = new HashMap<>();
 
     private void scannePackage(String cPackage) throws Exception {
@@ -66,9 +65,9 @@ public class FrontControleur extends HttpServlet {
 
     private void setMapping(Class<?> c) throws Exception {
         Method[] methodes = c.getMethods();
-        for (int j = 0; j < methodes.length; j++) {
-            Url annotUrl = methodes[j].getAnnotation(Url.class);
-            if ( annotUrl !=null ) {
+        for (Method method : methodes) {
+            Url annotUrl = method.getAnnotation(Url.class);
+            if (annotUrl != null) {
                 String url = (annotUrl.value().charAt(0) == '/') ? annotUrl.value() : "/" + annotUrl.value();
                 if (controleurs.containsKey(url)) {
                     throw new Exception("Duplicate url ["+ url +"] dans "+ c.getName() + " et "+ controleurs.get(url).getClassName());
@@ -76,11 +75,11 @@ public class FrontControleur extends HttpServlet {
 
                 Mapping map = new Mapping(
                     c.getName(),
-                    methodes[j].getName(), 
-                    methodes[j].getParameters()
+                    method.getName(), 
+                    method.getParameters()
                 );
 
-                if (methodes[j].isAnnotationPresent(POST.class)) {
+                if (method.isAnnotationPresent(POST.class)) {
                     map.addVerb("POST");
                 } else {
                     map.addVerb("GET");
@@ -137,7 +136,6 @@ public class FrontControleur extends HttpServlet {
                     out.println(json.toJson(rep));
                 }
             } 
-            
             else if(rep instanceof String) {
                 out.println(rep.toString());
             } else if (rep instanceof ModelView) {
@@ -146,7 +144,7 @@ public class FrontControleur extends HttpServlet {
                 mv.setAttributs(request);
                 dispatcher.forward(request, response);
             } else {
-                response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "Type de retour non supporter");
+                response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "Type de retour non supporté");
             }
 
         } catch (Exception e) {
@@ -174,7 +172,7 @@ public class FrontControleur extends HttpServlet {
         try {
             this.scannePackage(null);
             if (controleurs.size() == 0) {
-                throw new ServletException("Pas de path trouver");
+                throw new ServletException("Pas de path trouvé");
             }
         } catch (Exception e) {
             throw new ServletException(e);
@@ -189,6 +187,5 @@ public class FrontControleur extends HttpServlet {
     @Override
     public String getServletInfo() {
         return "Short description";
-    }// </editor-fold>
-
+    }
 }
