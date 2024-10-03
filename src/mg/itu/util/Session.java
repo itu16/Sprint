@@ -8,7 +8,7 @@ public class Session {
     public Session(HttpSession httpSession) {
         this.httpSession = httpSession;
     }
-
+    
     public void setAttribute(String key, Object value) {
         httpSession.setAttribute(key, value);
     }
