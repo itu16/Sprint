@@ -40,15 +40,15 @@ public class FrontControleur extends HttpServlet {
 
         String path = cPackage.replace(".", "/");
         URL url = Thread.currentThread().getContextClassLoader().getResource(path);
-        if(url == null) {
-            throw new Exception("Le package ["+ cPackage +"] n'existe pas");
+        if (url == null) {
+            throw new Exception("Le package [" + cPackage + "] n'existe pas");
         }
 
         File directory = new File(url.getFile());
         if (directory.exists()) {
             File[] files = directory.listFiles();
             for (File file : files) {
-                if(file.isFile() && file.getName().endsWith(".class")) {
+                if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = cPackage + '.' + file.getName().substring(0, file.getName().length() - 6);
                     Class<?> class1 = Class.forName(className);
                     Annotation annotation = class1.getAnnotation(Controleur.class);
@@ -65,14 +65,25 @@ public class FrontControleur extends HttpServlet {
 
     private void setMapping(Class<?> c) throws Exception {
         Method[] methodes = c.getMethods();
+<<<<<<< Updated upstream
         for (Method method : methodes) {
             Url annotUrl = method.getAnnotation(Url.class);
             if (annotUrl != null) {
                 String url = (annotUrl.value().charAt(0) == '/') ? annotUrl.value() : "/" + annotUrl.value();
+=======
+        for (int j = 0; j < methodes.length; j++) {
+            Url annoteUrl = methodes[j].getAnnotation(Url.class);
+            if (annoteUrl != null) {
+                String url = (annoteUrl.value().charAt(0) == '/' ? annoteUrl.value() : "/" + annoteUrl.value());
+                Mapping map;
+>>>>>>> Stashed changes
                 if (controleurs.containsKey(url)) {
-                    throw new Exception("Duplicate url ["+ url +"] dans "+ c.getName() + " et "+ controleurs.get(url).getClassName());
+                    map = controleurs.get(url);
+                } else {
+                    map = new Mapping();
                 }
 
+<<<<<<< Updated upstream
                 Mapping map = new Mapping(
                     c.getName(),
                     method.getName(), 
@@ -83,6 +94,13 @@ public class FrontControleur extends HttpServlet {
                     map.addVerb("POST");
                 } else {
                     map.addVerb("GET");
+=======
+                if (methodes[j].isAnnotationPresent(POST.class)) {
+                    map.addVerbAction("POST", c, methodes[j]);
+                }
+                if (methodes[j].isAnnotationPresent(GET.class)) {
+                    map.addVerbAction("GET", c, methodes[j]);
+>>>>>>> Stashed changes
                 }
                 controleurs.put(url, map);
             }
@@ -92,8 +110,8 @@ public class FrontControleur extends HttpServlet {
     private String getRequestUrl(HttpServletRequest request) {
         String urlPattern = request.getHttpServletMapping().getPattern().replace("*", "");
         String requestUrl = request.getRequestURI()
-                            .replace(request.getContextPath(), "")
-                            .replace(urlPattern,"");
+                .replace(request.getContextPath(), "")
+                .replace(urlPattern, "");
         requestUrl = (requestUrl.startsWith("/")) ? requestUrl : "/" + requestUrl;
         return requestUrl;
     }
@@ -108,24 +126,25 @@ public class FrontControleur extends HttpServlet {
             Mapping mapping = controleurs.getOrDefault(requestUrl, null);
 
             if (mapping == null) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND,  "La ressource demandée ["+requestUrl+"] n'est pas disponible");
+                response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                        "La ressource demandée [" + requestUrl + "] n'est pas disponible");
                 return;
             }
 
             if (!mapping.isMethodAllowed(request.getMethod())) {
-                response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+                response.sendError(HttpServletResponse.SC_NO_CONTENT);
                 return;
             }
-            
-            // Gestion de reponse
+
+            // Gestion de la réponse
             Object rep = mapping.getResponse(request);
-            if(rep == null) {
+            if (rep == null) {
                 response.sendError(HttpServletResponse.SC_NO_CONTENT, "Pas de type de retour");
                 return;
             }
 
-            if (mapping.isRestapi()) {
-                response.setContentType("text/json");
+            if (mapping.isRestapi(request.getMethod())) { // Vérifie si la méthode est une API REST
+                response.setContentType("application/json");
                 Gson json = new Gson();
                 if (rep instanceof ModelView) {
                     ModelView mv = (ModelView) rep;
@@ -135,13 +154,17 @@ public class FrontControleur extends HttpServlet {
                 } else {
                     out.println(json.toJson(rep));
                 }
+<<<<<<< Updated upstream
             } 
             else if(rep instanceof String) {
+=======
+            } else if (rep instanceof String) {
+>>>>>>> Stashed changes
                 out.println(rep.toString());
             } else if (rep instanceof ModelView) {
                 ModelView mv = (ModelView) rep;
                 RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrlDestionation());
-                mv.setAttributs(request);
+                mv.setAttributs(request); // Ajoute les attributs au request
                 dispatcher.forward(request, response);
             } else {
                 response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "Type de retour non supporté");
@@ -152,14 +175,13 @@ public class FrontControleur extends HttpServlet {
         }
     }
 
-
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         processRequest(request, response);
     }
-    
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
