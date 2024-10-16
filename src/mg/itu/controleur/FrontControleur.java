@@ -65,42 +65,22 @@ public class FrontControleur extends HttpServlet {
 
     private void setMapping(Class<?> c) throws Exception {
         Method[] methodes = c.getMethods();
-<<<<<<< Updated upstream
-        for (Method method : methodes) {
-            Url annotUrl = method.getAnnotation(Url.class);
-            if (annotUrl != null) {
-                String url = (annotUrl.value().charAt(0) == '/') ? annotUrl.value() : "/" + annotUrl.value();
-=======
         for (int j = 0; j < methodes.length; j++) {
             Url annoteUrl = methodes[j].getAnnotation(Url.class);
             if (annoteUrl != null) {
                 String url = (annoteUrl.value().charAt(0) == '/' ? annoteUrl.value() : "/" + annoteUrl.value());
                 Mapping map;
->>>>>>> Stashed changes
                 if (controleurs.containsKey(url)) {
                     map = controleurs.get(url);
                 } else {
                     map = new Mapping();
                 }
 
-<<<<<<< Updated upstream
-                Mapping map = new Mapping(
-                    c.getName(),
-                    method.getName(), 
-                    method.getParameters()
-                );
-
-                if (method.isAnnotationPresent(POST.class)) {
-                    map.addVerb("POST");
-                } else {
-                    map.addVerb("GET");
-=======
                 if (methodes[j].isAnnotationPresent(POST.class)) {
                     map.addVerbAction("POST", c, methodes[j]);
                 }
                 if (methodes[j].isAnnotationPresent(GET.class)) {
                     map.addVerbAction("GET", c, methodes[j]);
->>>>>>> Stashed changes
                 }
                 controleurs.put(url, map);
             }
@@ -154,12 +134,7 @@ public class FrontControleur extends HttpServlet {
                 } else {
                     out.println(json.toJson(rep));
                 }
-<<<<<<< Updated upstream
-            } 
-            else if(rep instanceof String) {
-=======
             } else if (rep instanceof String) {
->>>>>>> Stashed changes
                 out.println(rep.toString());
             } else if (rep instanceof ModelView) {
                 ModelView mv = (ModelView) rep;
@@ -194,7 +169,7 @@ public class FrontControleur extends HttpServlet {
         try {
             this.scannePackage(null);
             if (controleurs.size() == 0) {
-                throw new ServletException("Pas de path trouvé");
+                throw new ServletException("Pas de path trouver");
             }
         } catch (Exception e) {
             throw new ServletException(e);
@@ -209,5 +184,6 @@ public class FrontControleur extends HttpServlet {
     @Override
     public String getServletInfo() {
         return "Short description";
-    }
+    }// </editor-fold>
+
 }
