@@ -16,17 +16,6 @@ import mg.itu.annotation.Restapi;
 public class Mapping {
     List<VerbAction> verbActions = new ArrayList<>();
 
-<<<<<<< Updated upstream
-    public Mapping(String className, String methodName, Parameter[] parameters) {
-        setClassName(className);
-        setParameters(parameters);
-        setMethodName(methodName);
-    }
-
-    public Mapping(String className, String methodName) {
-        setClassName(className);
-        setMethodName(methodName);
-=======
     public void addVerbAction(String verb, Class<?> cls, Method method) throws Exception {
         VerbAction va = getVerbAction(verb);
         if (va != null) {
@@ -34,7 +23,6 @@ public class Mapping {
                     + va.getCls().getName() + "." + va.getMethod().getName() + "]");
         }
         verbActions.add(new VerbAction(cls, method, verb));
->>>>>>> Stashed changes
     }
 
     public Mapping() {
@@ -55,16 +43,8 @@ public class Mapping {
         return value;
     }
 
-<<<<<<< Updated upstream
-    private Object getInstance(Class<?> c) throws Exception {
-        return c.getConstructor().newInstance();
-    }
-
-    private void injectSession(Object instance, HttpServletRequest request) throws IllegalArgumentException, IllegalAccessException {
-=======
     private void injectSession(Object instance, HttpServletRequest request)
             throws IllegalArgumentException, IllegalAccessException {
->>>>>>> Stashed changes
         for (Field field : instance.getClass().getDeclaredFields()) {
             if (field.getType().equals(Session.class)) {
                 field.setAccessible(true);
@@ -125,11 +105,7 @@ public class Mapping {
                     continue;
                 }
                 String paramKey = getParameterName(method, parameters[i]);
-<<<<<<< Updated upstream
-                // Object 
-=======
                 // Object
->>>>>>> Stashed changes
                 if (paramKey.equals(data[0]) && data.length > 1) {
                     Object model = mapInstances.get(data[0]);
                     Method m = getMethod(model.getClass(), data[1]);
@@ -150,7 +126,7 @@ public class Mapping {
         } else if (param.getType().getName().equals(Session.class.getName())) {
             return "";
         } else {
-            throw new Exception("ETU002532:Erreur annotation");
+            throw new Exception("ETU002643:Erreur annotation");
         }
         // return param.getName();
     }
@@ -170,46 +146,6 @@ public class Mapping {
         return c.getMethod(fieldSetter, fieldType);
     }
 
-<<<<<<< Updated upstream
-
-    private Class<?>[] getParameterTypes() {
-        Class<?>[] types = new Class[parameters.length];
-        for (int i = 0; i < types.length; i++) {
-            types[i] = parameters[i].getType();
-        }
-        return types;
-    }
-
-    public String getClassName() {
-        return className;
-    }
-
-    public void setClassName(String className) {
-        this.className = className;
-    }
-
-    public String getMethodName() {
-        return methodName;
-    }
-
-    public void setMethodName(String methodName) {
-        this.methodName = methodName;
-    }
-
-    public Parameter[] getParameters() {
-        return parameters;
-    }
-
-    public void setParameters(Parameter[] parameters) {
-        this.parameters = parameters;
-    }    
-
-    public void addVerb(String verb) {
-        this.verbs.add(verb);
-    }
-
-=======
->>>>>>> Stashed changes
     public boolean isMethodAllowed(String method) {
         for (VerbAction verbAction : verbActions) {
             if (verbAction.isVerbAllowed(method)) {
