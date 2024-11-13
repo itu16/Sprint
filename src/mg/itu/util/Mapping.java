@@ -4,12 +4,14 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
 import mg.itu.annotation.Param;
 import mg.itu.annotation.Restapi;
 
@@ -22,11 +24,7 @@ public class Mapping {
             throw new Exception("Duplicate Method dans [" + cls.getName() + "." + method.getName() + "] et ["
                     + va.getCls().getName() + "." + va.getMethod().getName() + "]");
         }
-        verbActions.add(new VerbAction(cls, method, verb));
-    }
-
-    public Mapping() {
-
+        verbActions.add(new VerbAction(verb, cls, method));
     }
 
     private Object cast(Class<?> type, Object value) {
@@ -66,6 +64,21 @@ public class Mapping {
         return c.getConstructor().newInstance();
     }
 
+    protected void injectPartOnModel(HttpServletRequest request, Map<String, Object> models) throws Exception {
+        Collection<Part> parts = request.getParts();
+        for (Part part : parts) {
+            String fileName = part.getName();
+            String[] data = fileName.split("\\.");
+
+            // Object
+            if (data.length > 1) {
+                Object model = models.get(data[0]);
+                Method m = getMethod(model.getClass(), data[1]);
+                m.invoke(model, new Fichier(part));
+            }
+        }
+    }
+
     public Object getResponse(HttpServletRequest request) throws Exception {
         VerbAction va = getVerbAction(request.getMethod());
         Object instance = getInstance(va.getCls());
@@ -76,7 +89,6 @@ public class Mapping {
 
         // instance non Primitive Parameter
         Map<String, Object> mapInstances = new HashMap<>();
-
         // Argument anle method controleur
         Object[] paramValues = new Object[method.getParameterCount()];
 
@@ -85,6 +97,13 @@ public class Mapping {
                 paramValues[index] = new Session(request.getSession());
                 continue;
             }
+
+            if (parameters[index].getType().getName().equals(Fichier.class.getName())) {
+                Part p = request.getPart(getParameterName(method, parameters[index]));
+                paramValues[index] = new Fichier(p);
+                continue;
+            }
+
             if (parameters[index].getType().isPrimitive()) {
                 continue;
             }
@@ -104,7 +123,9 @@ public class Mapping {
                 if (parameters[i].getType().getName().equals(Session.class.getName())) {
                     continue;
                 }
+
                 String paramKey = getParameterName(method, parameters[i]);
+
                 // Object
                 if (paramKey.equals(data[0]) && data.length > 1) {
                     Object model = mapInstances.get(data[0]);
@@ -117,6 +138,7 @@ public class Mapping {
             }
         }
 
+        injectPartOnModel(request, mapInstances);
         return method.invoke(instance, paramValues);
     }
 
@@ -128,7 +150,12 @@ public class Mapping {
         } else {
             throw new Exception("ETU002643:Erreur annotation");
         }
-        // return param.getName();
+    }
+
+    private Method getMethod(Class<?> c, String fieldName) throws Exception {
+        Class<?> fieldType = c.getDeclaredField(fieldName).getType();
+        String fieldSetter = toSetters(fieldName);
+        return c.getMethod(fieldSetter, fieldType);
     }
 
     public boolean isRestapi(String verb) throws ClassNotFoundException, NoSuchMethodException, SecurityException {
@@ -138,12 +165,6 @@ public class Mapping {
 
     private String toSetters(String name) {
         return "set" + name.substring(0, 1).toUpperCase() + name.substring(1);
-    }
-
-    private Method getMethod(Class<?> c, String fieldName) throws Exception {
-        Class<?> fieldType = c.getDeclaredField(fieldName).getType();
-        String fieldSetter = toSetters(fieldName);
-        return c.getMethod(fieldSetter, fieldType);
     }
 
     public boolean isMethodAllowed(String method) {

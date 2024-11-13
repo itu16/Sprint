@@ -18,6 +18,7 @@ import com.google.gson.Gson;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +28,7 @@ import mg.itu.annotation.POST;
 import mg.itu.annotation.Url;
 import mg.itu.util.Mapping;
 
+@MultipartConfig
 public class FrontControleur extends HttpServlet {
     private final String INIT_PACKAGE = "package_controleur";
 
@@ -100,8 +102,6 @@ public class FrontControleur extends HttpServlet {
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         try {
-            PrintWriter out = response.getWriter();
-
             String requestUrl = getRequestUrl(request);
             Mapping mapping = controleurs.getOrDefault(requestUrl, null);
 
@@ -112,41 +112,45 @@ public class FrontControleur extends HttpServlet {
             }
 
             if (!mapping.isMethodAllowed(request.getMethod())) {
-                response.sendError(HttpServletResponse.SC_NO_CONTENT);
+                response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
                 return;
             }
-
-            // Gestion de la réponse
-            Object rep = mapping.getResponse(request);
-            if (rep == null) {
-                response.sendError(HttpServletResponse.SC_NO_CONTENT, "Pas de type de retour");
-                return;
-            }
-
-            if (mapping.isRestapi(request.getMethod())) { // Vérifie si la méthode est une API REST
-                response.setContentType("application/json");
-                Gson json = new Gson();
-                if (rep instanceof ModelView) {
-                    ModelView mv = (ModelView) rep;
-                    out.println(json.toJson(mv.getData()));
-                } else if (rep instanceof String) {
-                    out.println(rep);
-                } else {
-                    out.println(json.toJson(rep));
-                }
-            } else if (rep instanceof String) {
-                out.println(rep.toString());
-            } else if (rep instanceof ModelView) {
-                ModelView mv = (ModelView) rep;
-                RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrlDestionation());
-                mv.setAttributs(request); // Ajoute les attributs au request
-                dispatcher.forward(request, response);
-            } else {
-                response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "Type de retour non supporté");
-            }
-
+            sendResponse(mapping, request, response);
         } catch (Exception e) {
             throw new ServletException(e);
+        }
+    }
+
+    private void sendResponse(Mapping mapping, HttpServletRequest request, HttpServletResponse response)
+            throws Exception {
+        PrintWriter out = response.getWriter();
+        // Gestion de la réponse
+        Object rep = mapping.getResponse(request);
+        if (rep == null) {
+            response.sendError(HttpServletResponse.SC_NO_CONTENT, "Pas de type de retour");
+            return;
+        }
+
+        if (mapping.isRestapi(request.getMethod())) { // Vérifie si la méthode est une API REST
+            response.setContentType("application/json");
+            Gson json = new Gson();
+            if (rep instanceof ModelView) {
+                ModelView mv = (ModelView) rep;
+                out.println(json.toJson(mv.getData()));
+            } else if (rep instanceof String) {
+                out.println(rep);
+            } else {
+                out.println(json.toJson(rep));
+            }
+        } else if (rep instanceof String) {
+            out.println(rep.toString());
+        } else if (rep instanceof ModelView) {
+            ModelView mv = (ModelView) rep;
+            RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrlDestionation());
+            mv.setAttributs(request); // Ajoute les attributs au request
+            dispatcher.forward(request, response);
+        } else {
+            response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "Type de retour non supporté");
         }
     }
 
