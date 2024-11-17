@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.Part;
 import mg.itu.annotation.Param;
 import mg.itu.annotation.Restapi;
+import mg.itu.exception.ValidatorException;
 
 public class Mapping {
     List<VerbAction> verbActions = new ArrayList<>();
@@ -74,7 +75,20 @@ public class Mapping {
             if (data.length > 1) {
                 Object model = models.get(data[0]);
                 Method m = getMethod(model.getClass(), data[1]);
-                m.invoke(model, new Fichier(part));
+                try {
+                    m.invoke(model, new Fichier(part));
+                } catch (Exception e) {
+                    continue;
+                }
+            }
+        }
+    }
+
+    public void validerMapObject(Map<String, Object> models) throws IllegalAccessException {
+        Map<String, ValidatorException> validations = Validator.controllerMap(models);
+        for (ValidatorException ve : validations.values()) {
+            if (ve.issetError()) {
+                System.out.println(ve.getMessage());
             }
         }
     }
@@ -137,8 +151,8 @@ public class Mapping {
                 }
             }
         }
-
         injectPartOnModel(request, mapInstances);
+        validerMapObject(mapInstances);
         return method.invoke(instance, paramValues);
     }
 
