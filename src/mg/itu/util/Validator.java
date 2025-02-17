@@ -5,11 +5,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 import mg.itu.exception.ValidatorException;
-import mg.itu.validation.*;
-import mg.itu.exception.*;
+import mg.itu.validation.NotBlank;
+import mg.itu.validation.NotNull;
+import mg.itu.validation.Range;
 
 public class Validator {
-    protected static String validateRang(Object object, Field field) throws IllegalAccessException {
+    protected static String validateRange(Object object, Field field) throws IllegalAccessException {
         if (field.isAnnotationPresent(Range.class)) {
             Range range = field.getAnnotation(Range.class);
             double min = range.min();
@@ -25,15 +26,13 @@ public class Validator {
             }
         }
         return null;
-
     }
 
     protected static String validateNotNull(Object object, Field field) throws IllegalAccessException {
         if (field.isAnnotationPresent(NotNull.class)) {
-            NotNull notNull = field.getAnnotation(NotNull.class);
             Object value = field.get(object);
             if (value == null) {
-                return "Le champ " + field.getName() + " ne peut être null";
+                return "Le champ " + field.getName() + " ne doit pas être null.";
             }
         }
         return null;
@@ -43,29 +42,28 @@ public class Validator {
         if (field.isAnnotationPresent(NotBlank.class)) {
             Object value = field.get(object);
             if (value instanceof String && ((String) value).trim().length() == 0) {
-                return "Le champ " + field.getName() + " ne peut être vide";
+                return "Le champ " + field.getName() + " est obligatoire.";
             }
         }
         return null;
     }
 
-    protected static ValidatorException controller(String param, Object model) throws IllegalAccessException {
-        Class<?> cls = model.getClass();
+    public static ValidatorException controller(String param, Object model) throws IllegalAccessException {
+        Class<?> clazz = model.getClass();
         ValidatorException ve = new ValidatorException();
-        for (Field field : cls.getDeclaredFields()) {
+        for (Field field : clazz.getDeclaredFields()) {
             field.setAccessible(true);
             String notNull = Validator.validateNotNull(model, field);
+            String range = Validator.validateRange(model, field);
             String notBlank = Validator.validateNotBlank(model, field);
-            String rang = Validator.validateRang(model, field);
             if (notNull != null) {
                 ve.add(field.getName(), null, notNull);
             }
-            if (rang != null) {
-                ve.add(field.getName(), field.get(model).toString(), rang);
+            if (range != null) {
+                ve.add(field.getName(), field.get(model).toString(), range);
             }
             if (notBlank != null) {
                 ve.add(field.getName(), "", notBlank);
-
             }
         }
         return ve;
@@ -79,5 +77,4 @@ public class Validator {
         }
         return exceptions;
     }
-
 }
