@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import jakarta.servlet.http.HttpServletRequest;
 import mg.itu.annotation.Security;
 import mg.itu.security.User;
+import mg.itu.util.Session;
 
 public class SecurityHandler {
     private Method method;
@@ -26,31 +27,39 @@ public class SecurityHandler {
         return method.isAnnotationPresent(Security.class);
     }
 
-    public static void saveUser(User user) {
-        if (request != null) {
-            request.getSession().setAttribute(SecurityHandler.SESSION_USER, user);
-        }
+    public static void saveUser(User user,Session session) {
+        if (session != null) {
+            session.setAttribute(SESSION_USER, user);
+        } else {
+        throw new IllegalStateException("La requête HTTP ne peut pas être nulle pour enregistrer l'utilisateur");
+    }
     }
 
     public boolean isGranted(HttpServletRequest request) throws Exception {
-        boolean reqAuth = requireAuth();
-        Object userObject = request.getSession().getAttribute(SecurityHandler.SESSION_USER);
-        if (!reqAuth) {
+        // Si la méthode n'a pas d'annotation @Security, accès libre
+        Security methodSec = method.getAnnotation(Security.class);
+        Security classSec = method.getDeclaringClass().getAnnotation(Security.class);
+        if (methodSec == null && classSec == null) {
             return true;
-        } else if (userObject == null && reqAuth) {
-            return false;
         }
-
-        try{
-            User user = (User) userObject;
-            Security sec = method.getAnnotation(Security.class);
-            if (user.getLevelUser() < sec.levelUser()) {
-                return false;
-            }
-        } catch(Exception e) {
-            throw new Exception(String.format("User doit etre une instance de [%s]", User.class.getName()));
+    
+        // Vérifie la session utilisateur
+        Object userObject = request.getSession().getAttribute(SESSION_USER);
+        if (userObject == null) {
+            throw new Exception("Access refusé! Vous devez être connecté.");
         }
+    
+        User user = (User) userObject;
+    
+        // Détermine l'annotation effective (priorité méthode)
+        Security effectiveSec = (methodSec != null) ? methodSec : classSec;
+    
+        // Vérifie le niveau requis
+        if (user.getLevelUser() < effectiveSec.levelUser()) {
+            throw new Exception("Access refusé! Niveau utilisateur insuffisant.");
+        }
+    
         return true;
-    }
+    }    
 
 }
